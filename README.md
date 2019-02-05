@@ -6,7 +6,7 @@ The test consisted of creating an Android app which require to connect with a ba
 
 ## Video
 
-![1](https://github.com/ispam/PruebaCornershop/tree/master/screens/prueba_cornershop.gif)
+![1](https://github.com/ispam/PruebaCornershop/blob/master/screens/prueba_cornershop.gif)
 
 ## Libraries Used
 - [Room](https://developer.android.com/topic/libraries/architecture/room.html) (Android Architecture Components) by Google
