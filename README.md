@@ -4,6 +4,10 @@
 
 The test consisted of creating an Android app which require to connect with a basic node.js server and make CRUD operations. Some of the requirements explicitly needed to satisfy UI/UX, Unit Tests, gitflow, API services and overall knowledge of Clean Architecture, Clean Code and Design Patterns.
 
+## Video
+
+![1](https://github.com/ispam/PruebaCornershop/screens/prueba_cornershop.gif)
+
 ## Libraries Used
 - [Room](https://developer.android.com/topic/libraries/architecture/room.html) (Android Architecture Components) by Google
 - [RxJava](https://github.com/ReactiveX/RxJava) by ReactiveX
