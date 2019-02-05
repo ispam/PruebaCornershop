@@ -17,7 +17,10 @@ import com.pruebacornershop.Data.Local.Entities.Counter
 import com.pruebacornershop.Data.Local.Entities.CounterID
 import com.pruebacornershop.Data.Local.ViewModels.TotalViewModel
 import com.pruebacornershop.Data.Remote.APIService
+import com.pruebacornershop.Data.Remote.repository
 import com.pruebacornershop.R
+import com.pruebacornershop.Utils.isOnline
+import com.pruebacornershop.Utils.noInternetConnection
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
@@ -79,8 +82,9 @@ class CounterAdapter(
             title.text = counter.title
             total.text = "${counter.count ?: 0}"
 
-            subtract.setOnTouchListener(tintColorOnState(decreaseCounter(counter.id ?: ""), subtract))
-            add.setOnTouchListener(tintColorOnState(incrementCounter(counter.id ?: ""), add))
+            subtract.setOnTouchListener(tintColorOnState(decreaseCounter(counter.id ?: "") , subtract))
+
+            add.setOnTouchListener(tintColorOnState(incrementCounter(counter.id ?: "") , subtract))
 
             card.setOnLongClickListener { longView ->
                 deleteDialog(longView, counter)
@@ -107,7 +111,11 @@ class CounterAdapter(
             val dialog: AlertDialog = builder
                 .setNegativeButton(view.context.getString(R.string.dialog_cancel), null)
                 .setPositiveButton(view.context.getString(R.string.dialog_delete)) { _, _ ->
-                    deleteCounter(counter.id ?: "")
+                    repository(
+                        { deleteCounter(counter.id ?: "") },
+                        { noInternetConnection(view.context) },
+                        view.context
+                    )
                 }
                 .setView(view)
                 .create()
@@ -167,16 +175,18 @@ class CounterAdapter(
             return View.OnTouchListener { v, event ->
                 when (event.action) {
                     MotionEvent.ACTION_UP -> {
-                        view.clearColorFilter()
+                        repository({view.clearColorFilter()}, {noInternetConnection(view.context)}, view.context)
                         true
                     }
                     MotionEvent.ACTION_DOWN -> {
-                        view.setColorFilter(Color.parseColor("#ce3737"), PorterDuff.Mode.SRC_IN)
-                        function.invoke()
+                        repository({
+                            view.setColorFilter(Color.parseColor("#ce3737"), PorterDuff.Mode.SRC_IN)
+                            function.invoke()
+                        }, {noInternetConnection(view.context)}, view.context)
                         true
                     }
                     else -> {
-                        view.clearColorFilter()
+                        repository({view.clearColorFilter()}, {noInternetConnection(view.context)}, view.context)
                         false
                     }
                 }

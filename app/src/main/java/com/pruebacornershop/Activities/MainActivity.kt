@@ -7,6 +7,7 @@ import android.os.Handler
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
@@ -18,9 +19,11 @@ import com.pruebacornershop.Data.Local.Entities.Counter
 import com.pruebacornershop.Data.Local.Entities.Total
 import com.pruebacornershop.Data.Local.ViewModels.TotalViewModel
 import com.pruebacornershop.Data.Remote.APIService
+import com.pruebacornershop.Data.Remote.repository
 import com.pruebacornershop.R
 import com.pruebacornershop.Utils.checkFirstRun
 import com.pruebacornershop.Utils.hideProgressDialog
+import com.pruebacornershop.Utils.noInternetConnection
 import com.pruebacornershop.Utils.showProgressDialog
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -51,7 +54,7 @@ class MainActivity : AppCompatActivity() {
 
         main_recycler.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
         getTotalFromLocal()
-        checkCounterListFromServer()
+        repository({checkCounterListFromServer()}, {main_lottie_animation.visibility = View.VISIBLE}, this)
         openDialogForNewCounter()
     }
 
@@ -60,7 +63,9 @@ class MainActivity : AppCompatActivity() {
         checkFirstRun(this, {}, setUpTapTarget(), {})
     }
 
+
     private fun getTotalFromLocal() {
+
         disposable.add(totalVM.getTotal()
             .subscribeOn(Schedulers.newThread())
             .observeOn(AndroidSchedulers.mainThread())
@@ -115,7 +120,7 @@ class MainActivity : AppCompatActivity() {
 
             val dialog: AlertDialog = builder
                 .setNegativeButton(getString(R.string.dialog_cancel), null)
-                .setPositiveButton(getString(R.string.dialog_accept)) { _, _ -> createCounterWithUIUXComponent(editText, clickView) }
+                .setPositiveButton(getString(R.string.dialog_accept)) { _, _ -> repository({createCounterWithUIUXComponent(editText, clickView)}, {noInternetConnection(this)}, this@MainActivity) }
                 .setView(view)
                 .create()
 
@@ -161,9 +166,17 @@ class MainActivity : AppCompatActivity() {
             .subscribe())
     }
 
+    private fun emptyTotal() {
+        disposable.add(apiService.getCountersList()
+            .subscribeOn(Schedulers.io())
+            .flatMapCompletable { totalVM.insertTotal(Total(0)) }
+            .doOnComplete { Log.v("insertTotal", "total created") }
+            .subscribe())
+    }
+
     private fun setUpTapTarget(): () -> Unit {
         return {
-            initializeTotal()
+            repository({initializeTotal()}, {emptyTotal()}, this@MainActivity)
             Handler().postDelayed({
                 MaterialTapTargetPrompt.Builder(this)
                     .setTarget(main_fab)
