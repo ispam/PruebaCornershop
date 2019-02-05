@@ -1,4 +1,10 @@
 <resources>
-    <string name="app_name">PruebaCornershop</string>
+    <string name="app_name">Prueba Cornershop</string>
     <string name="dialog_loading">Cargando</string>
+    <string name="dialog_cancel">Cancelar</string>
+    <string name="dialog_accept">Agregar</string>
+    <string name="dialog_delete">Borrar</string>
+    <string name="tap_target_no_info">Oops! Parece que todavía no tenemos info. Presiona aquí para crear un nuevo contador! →</string>
+    <string name="dialog_elimination_title">Confirmación de Eliminación</string>
+    <string name="adapter_tap_target">Para eliminar tú ingreso presiona por más de 2 segundos el contador</string>
 </resources>

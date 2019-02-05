@@ -20,6 +20,6 @@ interface APIService {
     @POST("api/v1/counter/dec")
     fun decreaseCounter(@Body id: CounterID): Single<List<Counter>>
 
-    @DELETE("api/v1/counter")
-    fun deleteCounter(): Single<List<Counter>>
+    @HTTP(method = "DELETE", path = "api/v1/counter", hasBody = true)
+    fun deleteCounter(@Body id: CounterID): Single<List<Counter>>
 }

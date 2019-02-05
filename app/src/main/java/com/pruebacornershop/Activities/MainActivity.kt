@@ -7,7 +7,6 @@ import android.os.Handler
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
@@ -29,6 +28,8 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import uk.co.samuelwall.materialtaptargetprompt.MaterialTapTargetPrompt
+import uk.co.samuelwall.materialtaptargetprompt.extras.backgrounds.RectanglePromptBackground
+import uk.co.samuelwall.materialtaptargetprompt.extras.focals.RectanglePromptFocal
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -46,12 +47,12 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         App.component.inject(this)
-        title = "Prueba Cornershop"
+        title = getString(R.string.app_name)
 
         main_recycler.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+        getTotalFromLocal()
         checkCounterListFromServer()
         openDialogForNewCounter()
-        getTotalFromLocal()
     }
 
     override fun onStart() {
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity() {
                     main_lottie_animation.visibility = View.VISIBLE
                     main_total.visibility = View.INVISIBLE
                 } else {
-                    main_lottie_animation.visibility = View.GONE
+                    main_lottie_animation.visibility = View.INVISIBLE
                     main_total.visibility = View.VISIBLE
                     main_recycler.adapter = CounterAdapter(list.toMutableList(), disposable, apiService, totalVM)
                 }
@@ -87,6 +88,23 @@ class MainActivity : AppCompatActivity() {
             .subscribe())
     }
 
+    private fun howToDeleteTapTarget(adapter: CounterAdapter) {
+
+        disposable.add(adapter.showTapTarget
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .map {
+                MaterialTapTargetPrompt.Builder(this)
+                    .setTarget(it)
+                    .setPrimaryText(getString(R.string.adapter_tap_target))
+                    .setBackgroundColour(resources.getColor(R.color.colorPrimaryDark))
+                    .setPromptBackground(RectanglePromptBackground())
+                    .setPromptFocal(RectanglePromptFocal())
+                    .show()
+            }
+            .subscribe())
+
+    }
 
     private fun openDialogForNewCounter() {
         main_fab.setOnClickListener { clickView ->
@@ -95,46 +113,44 @@ class MainActivity : AppCompatActivity() {
             val view = inflater.inflate(R.layout.dialog_counter, null, true)
             val editText = view.findViewById<TextInputEditText>(R.id.dialog_counter_edit)
 
-            val dialog: AlertDialog = builder.setNegativeButton("Cancelar", null)
-                .setPositiveButton("Agregar") { dialog1, which ->
-
-                    // This is a chain of actions composed with RxJava to connect
-                    // with the API service, it includes some UI/UX component showing dialog when
-                    // connection is made and when it finishes with the stream.
-                    disposable.add(apiService.createCounter(Counter(editText.text.toString()))
-                        .subscribeOn(Schedulers.io())
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .doOnSubscribe { showProgressDialog(clickView.context) }
-                        .delay(350, TimeUnit.MILLISECONDS)
-                        .doAfterTerminate { hideProgressDialog() }
-                        .observeOn(AndroidSchedulers.mainThread())
-                        .map {
-                            val adapter = CounterAdapter(emptyList<Counter>().toMutableList(), disposable, apiService, totalVM)
-                            main_recycler.adapter = adapter
-                            adapter.clearList()
-                            adapter.appendCounters(it)
-
-                            main_lottie_animation.visibility = View.GONE
-                            main_recycler.visibility = View.VISIBLE
-                        }
-                        .doOnError { e ->
-                            Log.e("TAG", e.localizedMessage)
-
-                            //TODO REMOVE THIS
-                            Toast.makeText(
-                                clickView.context,
-                                "Tenemos problemas de conexion con el servidor, por favor intentalo mas tarde",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                        .subscribe())
-
-                }.setView(view).create()
+            val dialog: AlertDialog = builder
+                .setNegativeButton(getString(R.string.dialog_cancel), null)
+                .setPositiveButton(getString(R.string.dialog_accept)) { _, _ -> createCounterWithUIUXComponent(editText, clickView) }
+                .setView(view)
+                .create()
 
             dialog.show()
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.BLACK)
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.BLACK)
         }
+    }
+
+    private fun createCounterWithUIUXComponent(editText: TextInputEditText, clickView: View) {
+        // This is a chain of actions composed with RxJava to connect
+        // with the API service, it includes some UI/UX component showing dialog when
+        // connection is made and when it finishes with the stream.
+        disposable.add(apiService.createCounter(Counter(editText.text.toString()))
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .doOnSubscribe { showProgressDialog(clickView.context) }
+            .delay(350, TimeUnit.MILLISECONDS)
+            .doAfterTerminate { hideProgressDialog() }
+            .observeOn(AndroidSchedulers.mainThread())
+            .map {
+                val adapter = CounterAdapter(emptyList<Counter>().toMutableList(), disposable, apiService, totalVM)
+                main_recycler.adapter = adapter
+                adapter.clearList()
+                adapter.appendCounters(it)
+
+                howToDeleteTapTarget(adapter)
+
+                main_lottie_animation.visibility = View.INVISIBLE
+                main_total.visibility = View.VISIBLE
+                main_recycler.visibility = View.VISIBLE
+            }
+            .doOnError { e -> Log.e("TAG", e.localizedMessage) }
+
+            .subscribe())
     }
 
     private fun initializeTotal() {
@@ -147,30 +163,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun setUpTapTarget(): () -> Unit {
         return {
-
             initializeTotal()
             Handler().postDelayed({
                 MaterialTapTargetPrompt.Builder(this)
                     .setTarget(main_fab)
-//            .setAutoDismiss(false)
-//            .setAutoFinish(false)
-                    .setPrimaryText("Aun no tenemos informacion, para ingresar un nuevo contador presiona aqui! →")
+                    .setPrimaryText(getString(R.string.tap_target_no_info))
                     .setBackgroundColour(resources.getColor(R.color.colorPrimaryDark))
                     .setAnimationInterpolator(FastOutSlowInInterpolator())
-//            .setPromptFocal(RectanglePromptFocal())
-                    .setPromptStateChangeListener { prompt, state ->
-                        when (state) {
-                            MaterialTapTargetPrompt.STATE_FOCAL_PRESSED -> {
-                                // User has pressed the prompt target
-                            }
-                            MaterialTapTargetPrompt.STATE_DISMISSED -> {
-                                // Prompt has been removed from view after the prompt has either been pressed somewhere other than the prompt target or the system back button has been pressed
-                            }
-                            MaterialTapTargetPrompt.STATE_FINISHED -> {
-                                // Prompt has been removed from view after the prompt has been pressed in the focal area
-                            }
-                        }
-                    }
                     .show()
             }, 500)
         }
