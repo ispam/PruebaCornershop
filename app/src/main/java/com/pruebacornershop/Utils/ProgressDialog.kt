@@ -15,5 +15,5 @@ fun showProgressDialog(context: Context): ProgressDialog {
 }
 
 fun hideProgressDialog() {
-    if (progressDialog.isShowing) progressDialog.dismiss()
+    if (::progressDialog.isInitialized && progressDialog.isShowing) progressDialog.dismiss()
 }

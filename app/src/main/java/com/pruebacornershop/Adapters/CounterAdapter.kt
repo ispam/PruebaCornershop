@@ -12,13 +12,14 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.pruebacornershop.Data.Local.Entities.Counter
 import com.pruebacornershop.Data.Local.Entities.CounterID
+import com.pruebacornershop.Data.Local.ViewModels.TotalViewModel
 import com.pruebacornershop.Data.Remote.APIService
 import com.pruebacornershop.R
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 
-class CounterAdapter(val counterList: MutableList<Counter>, val disposable: CompositeDisposable, val apiService: APIService) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class CounterAdapter(val counterList: MutableList<Counter>, val disposable: CompositeDisposable, val apiService: APIService, val totalVM: TotalViewModel) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.format_counter, parent, false))
@@ -61,21 +62,24 @@ class CounterAdapter(val counterList: MutableList<Counter>, val disposable: Comp
         fun bind(counter: Counter) {
 
             title.text = counter.title
-            var count = counter.count?: 0
-            total.text = count.toString()
-            val id = counter.id?: ""
+            total.text = "${counter.count?: 0}"
 
-            subtract.setOnTouchListener(tintColorOnState(decreaseCounter(id), subtract))
-            add.setOnTouchListener(tintColorOnState(incrementCounter(id), add))
+            subtract.setOnTouchListener(tintColorOnState(decreaseCounter(counter.id?: ""), subtract))
+            add.setOnTouchListener(tintColorOnState(incrementCounter(counter.id?: ""), add))
         }
 
         private fun incrementCounter(id: String): () -> Unit {
             return {
                 disposable.add(apiService.incrementCounter(CounterID(id))
                     .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
                     .doOnError { e -> Log.e("incrementCounter", e.localizedMessage) }
+                    .observeOn(AndroidSchedulers.mainThread())
                     .doOnSuccess { clearList(); appendCounters(it) }
+                    .flatMapCompletable {
+                        val total = it.sumBy { it.count!! }.toLong()
+                        totalVM.updateTotal(total, 1)
+                            .subscribeOn(Schedulers.newThread())
+                    }
                     .subscribe())
             }
         }

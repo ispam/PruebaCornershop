@@ -16,6 +16,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
 import com.pruebacornershop.Adapters.CounterAdapter
 import com.pruebacornershop.Data.Local.Entities.Counter
+import com.pruebacornershop.Data.Local.Entities.Total
+import com.pruebacornershop.Data.Local.ViewModels.TotalViewModel
 import com.pruebacornershop.Data.Remote.APIService
 import com.pruebacornershop.R
 import com.pruebacornershop.Utils.checkFirstRun
@@ -37,6 +39,9 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var apiService: APIService
 
+    @Inject
+    lateinit var totalVM: TotalViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -46,11 +51,20 @@ class MainActivity : AppCompatActivity() {
         main_recycler.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
         checkCounterListFromServer()
         openDialogForNewCounter()
+        getTotalFromLocal()
     }
 
     override fun onStart() {
         super.onStart()
-        checkFirstRun(this, setUpTapTarget(), {}, {})
+        checkFirstRun(this, {}, setUpTapTarget(), {})
+    }
+
+    private fun getTotalFromLocal() {
+        disposable.add(totalVM.getTotal()
+            .subscribeOn(Schedulers.newThread())
+            .observeOn(AndroidSchedulers.mainThread())
+            .map { main_total.text = "Total = $it" }
+            .subscribe())
     }
 
     private fun checkCounterListFromServer() {
@@ -59,18 +73,20 @@ class MainActivity : AppCompatActivity() {
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .switchIfEmpty { Observable.just(emptyList<Counter>()) }
-            .map {
-                if (it.isEmpty()) {
+            .map { list ->
+                if (list.isEmpty()) {
                     main_recycler.visibility = View.INVISIBLE
                     main_lottie_animation.visibility = View.VISIBLE
+                    main_total.visibility = View.INVISIBLE
                 } else {
                     main_lottie_animation.visibility = View.GONE
-                    main_recycler.adapter = CounterAdapter(it.toMutableList(), disposable, apiService)
+                    main_total.visibility = View.VISIBLE
+                    main_recycler.adapter = CounterAdapter(list.toMutableList(), disposable, apiService, totalVM)
                 }
             }
             .subscribe())
-
     }
+
 
     private fun openDialogForNewCounter() {
         main_fab.setOnClickListener { clickView ->
@@ -93,7 +109,7 @@ class MainActivity : AppCompatActivity() {
                         .doAfterTerminate { hideProgressDialog() }
                         .observeOn(AndroidSchedulers.mainThread())
                         .map {
-                            val adapter = CounterAdapter(emptyList<Counter>().toMutableList(), disposable, apiService)
+                            val adapter = CounterAdapter(emptyList<Counter>().toMutableList(), disposable, apiService, totalVM)
                             main_recycler.adapter = adapter
                             adapter.clearList()
                             adapter.appendCounters(it)
@@ -103,7 +119,13 @@ class MainActivity : AppCompatActivity() {
                         }
                         .doOnError { e ->
                             Log.e("TAG", e.localizedMessage)
-                            Toast.makeText(clickView.context, "Tenemos problemas de conexion con el servidor, por favor intentalo mas tarde", Toast.LENGTH_LONG).show()
+
+                            //TODO REMOVE THIS
+                            Toast.makeText(
+                                clickView.context,
+                                "Tenemos problemas de conexion con el servidor, por favor intentalo mas tarde",
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                         .subscribe())
 
@@ -115,8 +137,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun initializeTotal() {
+        disposable.add(apiService.getCountersList()
+            .subscribeOn(Schedulers.io())
+            .flatMapCompletable { totalVM.insertTotal(Total(it.sumBy { it.count!! }.toLong())) }
+            .doOnComplete { Log.v("insertTotal", "total created") }
+            .subscribe())
+    }
+
     private fun setUpTapTarget(): () -> Unit {
         return {
+
+            initializeTotal()
             Handler().postDelayed({
                 MaterialTapTargetPrompt.Builder(this)
                     .setTarget(main_fab)
@@ -140,7 +172,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     .show()
-            }, 450)
+            }, 500)
         }
     }
 
