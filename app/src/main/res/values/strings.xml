@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">PruebaCornershop</string>
+    <string name="dialog_loading">Cargando</string>
 </resources>

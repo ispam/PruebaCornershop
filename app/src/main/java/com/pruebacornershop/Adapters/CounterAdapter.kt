@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.pruebacornershop.Data.Local.Entities.Counter
 import com.pruebacornershop.R
 
-class CounterAdapter(val counterList: List<Counter>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class CounterAdapter(val counterList: MutableList<Counter>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         return ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.format_counter, parent, false))
@@ -35,6 +35,16 @@ class CounterAdapter(val counterList: List<Counter>) : RecyclerView.Adapter<Recy
         (holder as ViewHolder).bind(counter)
     }
 
+    fun clearList() {
+        counterList.clear()
+        notifyDataSetChanged()
+    }
+
+    fun appendCounters(countersToAppend: List<Counter>) {
+        counterList.addAll(countersToAppend)
+        notifyDataSetChanged()
+    }
+
     internal class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         private val title: TextView = view.findViewById(R.id.format_counter_title)
@@ -44,11 +54,12 @@ class CounterAdapter(val counterList: List<Counter>) : RecyclerView.Adapter<Recy
 
         fun bind(counter: Counter) {
 
-            var counterNum = 19
             title.text = counter.title
+            var count = counter.count!!
+            total.text = count.toString()
 
-            subtract.setOnTouchListener(tintColorOnState({total.text = counterNum--.toString()}, subtract))
-            add.setOnTouchListener(tintColorOnState({total.text = counterNum++.toString()}, add))
+            subtract.setOnTouchListener(tintColorOnState({total.text = count--.toString()}, subtract))
+            add.setOnTouchListener(tintColorOnState({total.text = count++.toString()}, add))
         }
 
         private fun tintColorOnState(function: () -> Unit, view: ImageView): View.OnTouchListener {
@@ -62,7 +73,6 @@ class CounterAdapter(val counterList: List<Counter>) : RecyclerView.Adapter<Recy
                     MotionEvent.ACTION_DOWN -> {
                         view.setColorFilter(Color.parseColor("#ce3737"), PorterDuff.Mode.SRC_IN)
                         function.invoke()
-                        view.performClick()
                         true
                     }
                     else -> {

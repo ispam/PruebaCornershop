@@ -5,10 +5,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorBackground"
     tools:context=".Activities.MainActivity">
 
     <com.airbnb.lottie.LottieAnimationView
-        android:id="@+id/lottieAnimationView"
+        android:id="@+id/main_lottie_animation"
         android:layout_width="0dp"
         android:layout_height="250dp"
         android:layout_marginStart="8dp"
@@ -32,6 +33,7 @@
         android:layout_marginRight="24dp"
         android:layout_marginBottom="24dp"
         android:clickable="true"
+        android:focusable="true"
         app:backgroundTint="@color/colorPrimaryDark"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
