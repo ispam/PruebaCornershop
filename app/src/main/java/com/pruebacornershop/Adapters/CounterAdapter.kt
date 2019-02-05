@@ -84,7 +84,7 @@ class CounterAdapter(
 
             subtract.setOnTouchListener(tintColorOnState(decreaseCounter(counter.id ?: "") , subtract))
 
-            add.setOnTouchListener(tintColorOnState(incrementCounter(counter.id ?: "") , subtract))
+            add.setOnTouchListener(tintColorOnState(incrementCounter(counter.id ?: "") , add))
 
             card.setOnLongClickListener { longView ->
                 deleteDialog(longView, counter)
