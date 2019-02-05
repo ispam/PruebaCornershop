@@ -7,6 +7,7 @@ import android.os.Handler
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
@@ -20,6 +21,7 @@ import com.pruebacornershop.R
 import com.pruebacornershop.Utils.checkFirstRun
 import com.pruebacornershop.Utils.hideProgressDialog
 import com.pruebacornershop.Utils.showProgressDialog
+import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
@@ -42,12 +44,32 @@ class MainActivity : AppCompatActivity() {
         title = "Prueba Cornershop"
 
         main_recycler.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+        checkCounterListFromServer()
         openDialogForNewCounter()
     }
 
     override fun onStart() {
         super.onStart()
         checkFirstRun(this, setUpTapTarget(), {}, {})
+    }
+
+    private fun checkCounterListFromServer() {
+
+        disposable.add(apiService.getCountersList()
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .switchIfEmpty { Observable.just(emptyList<Counter>()) }
+            .map {
+                if (it.isEmpty()) {
+                    main_recycler.visibility = View.INVISIBLE
+                    main_lottie_animation.visibility = View.VISIBLE
+                } else {
+                    main_lottie_animation.visibility = View.GONE
+                    main_recycler.adapter = CounterAdapter(it.toMutableList(), disposable, apiService)
+                }
+            }
+            .subscribe())
+
     }
 
     private fun openDialogForNewCounter() {
@@ -59,6 +81,10 @@ class MainActivity : AppCompatActivity() {
 
             val dialog: AlertDialog = builder.setNegativeButton("Cancelar", null)
                 .setPositiveButton("Agregar") { dialog1, which ->
+
+                    // This is a chain of actions composed with RxJava to connect
+                    // with the API service, it includes some UI/UX component showing dialog when
+                    // connection is made and when it finishes with the stream.
                     disposable.add(apiService.createCounter(Counter(editText.text.toString()))
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
@@ -67,8 +93,7 @@ class MainActivity : AppCompatActivity() {
                         .doAfterTerminate { hideProgressDialog() }
                         .observeOn(AndroidSchedulers.mainThread())
                         .map {
-                            // TODO NEED TO CHECK LOGIC HERE
-                            val adapter = CounterAdapter(randomPlaceholders())
+                            val adapter = CounterAdapter(emptyList<Counter>().toMutableList(), disposable, apiService)
                             main_recycler.adapter = adapter
                             adapter.clearList()
                             adapter.appendCounters(it)
@@ -76,23 +101,18 @@ class MainActivity : AppCompatActivity() {
                             main_lottie_animation.visibility = View.GONE
                             main_recycler.visibility = View.VISIBLE
                         }
-                        .doOnError { e -> Log.e("TAG", e.localizedMessage) }
+                        .doOnError { e ->
+                            Log.e("TAG", e.localizedMessage)
+                            Toast.makeText(clickView.context, "Tenemos problemas de conexion con el servidor, por favor intentalo mas tarde", Toast.LENGTH_LONG).show()
+                        }
                         .subscribe())
+
                 }.setView(view).create()
 
             dialog.show()
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.BLACK)
             dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(Color.BLACK)
         }
-    }
-
-    private fun randomPlaceholders(): MutableList<Counter> {
-
-        val randomList = mutableListOf<Counter>()
-        for (num in 0..19) {
-            randomList.add(Counter("Test ${num + 1}"))
-        }
-        return randomList
     }
 
     private fun setUpTapTarget(): () -> Unit {
